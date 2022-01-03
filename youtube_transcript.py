@@ -7,6 +7,9 @@ from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 
+# pip install requests
+import requests
+
 import os       # for os.path.abspath() because idk where my output file is
 
 ######################################
@@ -14,19 +17,44 @@ import os       # for os.path.abspath() because idk where my output file is
 #!!!!!!!!!!! FILL THIS IN !!!!!!!!!!!#
 
 # post your youtube api key (get it from here https://developers.google.com/youtube/v3/getting-started)
-youTubeApiKey = 'api_key_here' # or import from another secure file
-youtube = build('youtube', 'v3', developerKey = youTubeApiKey)  # choose youtube api to connect to
+youTubeApiKey = 'API_key_here' # or import from another file
 
-# post the channel id (https://www.youtube.com/channel/this_is_channel_id)
-channel_id = 'channel_id_here'
+# post the channel url
+channel_url = 'channel_url_here'
 
 # name of file to write to
 file_name = 'transcripts.txt'
 
 # transcript languages
-transcript_language = ['en', 'en-GB'] # grabs American English or UK English in that order
+transcript_language = ['en', 'en-GB'] # e.g. grabs American English or UK English in that order
 
 ######################################
+
+# choose youtube api to connect to
+youtube = build('youtube', 'v3', developerKey = youTubeApiKey)
+
+# get channel id from url
+channel_id = ''
+if 'youtube.com/user/' in channel_url:
+    channel_username = channel_url.split("/")[-1]
+    channel_username_response = youtube.channels().list(part = 'id', forUsername = channel_username).execute()
+    channel_id = channel_username_response['items'][0]["id"]
+elif 'youtube.com/channel/' in channel_url:
+    channel_id = channel_url.split("/")[-1]
+elif 'youtube.com/c/' in channel_url:
+#    print('YouTube\'s API does not (and will not) support urls with the format: youtube.com/c/custom_url')
+#    print('Google\'s response: https://issuetracker.google.com/issues/165676622.')
+#    print('As a workaround, please go to the channel, click on any video, then click on the channel name.')
+#    print('The url will now be of the format "youtube.com/channel/channel_id" and can be used.')
+#    exit()
+
+    # script workaround: scrape channel id from webpage
+    channel_page_content = requests.get('https://www.youtube.com/c/inanutshell')
+    channel_id = channel_page_content.text.split("channel_id=")[1].split("\"")[0]
+
+else:
+    print('unknown url format')
+    exit()
 
 # get list of the channel's videos' id
 # saved in video_id_list
@@ -52,8 +80,8 @@ for video_id, video_name in video_id_and_name_list:
     file.write('============================================================================================\n')
     file.write(video_name)
     file.write('\n')
-    file.write('https://www.youtube.com/watch?v=')              # link to video
-    file.write(video_id)                                        #
+    file.write('https://www.youtube.com/watch?v=')
+    file.write(video_id)
     file.write('\n\n')
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages = transcript_language)
